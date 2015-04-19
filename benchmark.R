@@ -2,8 +2,6 @@ require(digest)
 require(stringi)
 require(data.table)
 
-setwd("c:/Users/user/Documents/_learning/coursera/10_Capstone/02_code/benchmark/")
-
 ################################################################################################
 #
 # 01. Loading of benchmark data sets
@@ -106,7 +104,8 @@ benchmark <- compiler::cmpfun(function(FUN, ..., sent.list, ext.output=T) {
                
                score <- 0
                max.score <-0
-               hit.count <- 0
+               hit.count.top3 <- 0
+               hit.count.top1 <- 0
                total.count <- 0
                time <- system.time({
                    for (sent in sentences) {
@@ -118,8 +117,9 @@ benchmark <- compiler::cmpfun(function(FUN, ..., sent.list, ext.output=T) {
                                           min(which(FUN(split[1,i], ...)==split[2,i]),4)
                                       })
                        score <- score + sum(4-rank)
-                       hit.count <- hit.count + sum(rank<4)
-                   }    
+                       hit.count.top3 <- hit.count.top3 + sum(rank<4)
+                       hit.count.top1 <- hit.count.top1 + sum(rank==1)
+                   }
                })
                
                list('list.name' = list.name,
@@ -128,7 +128,8 @@ benchmark <- compiler::cmpfun(function(FUN, ..., sent.list, ext.output=T) {
                     'hash' = digest(paste0(sentences, collapse = '||'), algo='sha256', serialize=F),
                     'score' = score,
                     'max.score' = max.score,
-                    'hit.count' = hit.count,
+                    'hit.count.top3' = hit.count.top3,
+                    'hit.count.top1' = hit.count.top1,
                     'total.count' = total.count,
                     'total.runtime' = time[3]
                )               
@@ -139,7 +140,8 @@ benchmark <- compiler::cmpfun(function(FUN, ..., sent.list, ext.output=T) {
     # The overall scores are calculated weighting each data set equally (independent of the 
     # number of lines in each dataset).
     overall.score.percent = 100 * result[,sum(score/max.score)/.N]
-    overall.precision = 100 * result[,sum(hit.count/total.count)/.N]
+    overall.precision.top3 = 100 * result[,sum(hit.count.top3/total.count)/.N]
+    overall.precision.top1 = 100 * result[,sum(hit.count.top1/total.count)/.N]
     average.runtime = 1000 * result[,sum(total.runtime)/sum(total.count)]
     total.mem.used = sum(unlist(lapply(ls(.GlobalEnv),
                                        function(x) {
@@ -147,12 +149,14 @@ benchmark <- compiler::cmpfun(function(FUN, ..., sent.list, ext.output=T) {
                                                            envir = .GlobalEnv,
                                                            inherits = FALSE))
                                            })))/(1024^2)
-    cat(sprintf(paste0('Overall score:     %.2f %%\n',
-                       'Overall precision: %.2f %%\n',
-                       'Average runtime:   %.2f msec\n',
-                       'Total memory used: %.2f MB\n'),
+    cat(sprintf(paste0('Overall top-3 score:     %.2f %%\n',
+                       'Overall top-1 precision: %.2f %%\n',
+                       'Overall top-3 precision: %.2f %%\n',
+                       'Average runtime:         %.2f msec\n',
+                       'Total memory used:       %.2f MB\n'),
                 overall.score.percent,
-                overall.precision,
+                overall.precision.top1,
+                overall.precision.top3,
                 average.runtime,
                 total.mem.used
                 ))
@@ -161,15 +165,16 @@ benchmark <- compiler::cmpfun(function(FUN, ..., sent.list, ext.output=T) {
     for (p.list.name in result$list.name) {
         res <- result[list(p.list.name)]
         cat(sprintf(paste0(' Dataset "%s" (%d lines, %d words, hash %s)\n',
-                           '  Score: %.2f %%, Precision: %.2f %%\n'
+                           '  Score: %.2f %%, Top-1 precision: %.2f %%, Top-3 precision: %.2f %%\n'
                            ),
                     p.list.name,
                     res$line.count,
                     res$word.count,
                     res$hash,
                     100 * res$score/res$max.score,
-                    100 * res$hit.count/res$total.count
-                    ))
+                    100 * res$hit.count.top1/res$total.count,
+                    100 * res$hit.count.top3/res$total.count
+        ))
     }
     
     if (ext.output==T) {
