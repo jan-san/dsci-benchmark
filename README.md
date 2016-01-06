@@ -3,6 +3,8 @@ Next word prediction benchmark
 
 A simple R script for benchmarking a next word prediction algorithm.
 
+**Please note:** For a modified version of the benchmark for the current iteration of the Capstone project, please check out [this fork by Hernán] (https://github.com/hfoffani/dsci-benchmark)
+
 Usage:
 ------
 
